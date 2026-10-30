@@ -140,7 +140,7 @@ func (r *FeatureGateWatcher) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	if !equality.Semantic.DeepEqual(&newFeatureGates, &r.Current) {
+	if !featureGatesEqual(newFeatureGates, r.Current) {
 		if r.OnChange != nil {
 			r.OnChange(ctx)
 		}
@@ -148,4 +148,15 @@ func (r *FeatureGateWatcher) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func featureGatesEqual(a, b FeatureGates) bool {
+	return a.FeatureSet == b.FeatureSet &&
+		equality.Semantic.DeepEqual(a.Enabled, b.Enabled) &&
+		customFeatureGatesEqual(a.customNoUpgrade, b.customNoUpgrade)
+}
+
+func customFeatureGatesEqual(a, b *osconfigv1.CustomFeatureGates) bool {
+	// Compare the API object directly to avoid reflecting through FeatureGates' private field.
+	return equality.Semantic.DeepEqual(a, b)
 }

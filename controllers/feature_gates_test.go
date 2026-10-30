@@ -107,3 +107,34 @@ func TestReadFeatureGates(t *testing.T) {
 		})
 	}
 }
+
+func TestCustomNoUpgradeFeatureGatesEquality(t *testing.T) {
+	// Define a FeatureGate with CustomNoUpgrade featureSet and CustomNoUpgrade gates.
+	cr := makeFeatureGateCR(osconfigv1.CustomNoUpgrade, nil)
+	cr.Spec.CustomNoUpgrade = &osconfigv1.CustomFeatureGates{
+		Enabled: []osconfigv1.FeatureGateName{"ClusterAPIOperator", "CRDCompatibilityRequirementOperator"},
+	}
+
+	// Check the processing does not error.
+	newFeatureGates, err := processFeatureGates(cr, "")
+	assert.NoError(t, err)
+
+	// In case the CustomNoUpgrade are the same, assert equality.
+	current := newFeatureGates
+	current.customNoUpgrade = newFeatureGates.customNoUpgrade.DeepCopy()
+	assert.True(t, featureGatesEqual(newFeatureGates, current))
+
+	// In case the CustomNoUpgrade are differing, assert inequality.
+	current.customNoUpgrade.Enabled[0] = "DifferentGate"
+	assert.False(t, featureGatesEqual(newFeatureGates, current))
+
+	// In case the CustomNoUpgrade features are inequal in enablement status, assert inequality.
+	current = newFeatureGates
+	current.customNoUpgrade = newFeatureGates.customNoUpgrade.DeepCopy()
+	current.customNoUpgrade.Disabled = []osconfigv1.FeatureGateName{"DifferentGate"}
+	assert.False(t, featureGatesEqual(newFeatureGates, current))
+	assert.False(t, customFeatureGatesEqual(nil, newFeatureGates.customNoUpgrade))
+
+	// In case the CustomNoUpgrade features are both nil, assert equality.
+	assert.True(t, customFeatureGatesEqual(nil, nil))
+}
